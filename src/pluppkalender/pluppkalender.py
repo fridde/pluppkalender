@@ -52,9 +52,15 @@ def train_model(dir):
     model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     step_size_train = train_generator.n // train_generator.batch_size
-    model.fit(train_generator, steps_per_epoch=step_size_train, epochs=10)
+    model.fit(train_generator, steps_per_epoch=step_size_train, epochs=20)
 
-    model.export('saved_model')
+    model.save('saved_model.keras')
+
+    labels = [f.name for f in os.scandir(dir) if f.is_dir()]
+
+    with open('saved_model/labels.txt', 'w') as f:
+        for label in labels:
+            f.write(f"{label}\n")
 
 
 
@@ -66,20 +72,21 @@ def split_into_days(dir):
     week_image_paths = Path('./weeks/').glob('*.jpg')
     
     for image_path in week_image_paths:
-        subprocess.run('convert ./weeks/' + str(image_path.name) +' -set filename:fn "%t" -crop 5x6@ ./days/%[filename:fn]-%02d.jpg', shell=True)
+        subprocess.run('magick convert ./weeks/' + str(image_path.name) +' -set filename:fn "%t" -crop 5x6@ ./days/%[filename:fn]-%02d.jpg', shell=True)
    
-def predict_days(directory):
-    # Load the labels
-    with open('labels.txt', 'r') as file:
-        lines = file.read().splitlines()
-    
-    class_names = [x.split(':')[1] for x in lines]
 
+@click.command()
+@click.argument('dir')
+def predict_days(dir):
+    # Load the labels
+    with open('saved_model/labels.txt', 'r') as file:
+        class_names = file.read().splitlines()
+    
     # Disable scientific notation for clarity
     np.set_printoptions(suppress=True)
 
     # Load the model
-    model = load_model('saved_model', compile=False)
+    model = keras.models.load_model('saved_model.keras', compile=False)
 
     # Create the array of the right shape to feed into the keras model
     # The 'length' or number of images you can put into the array is
@@ -87,7 +94,7 @@ def predict_days(directory):
     data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
     # Replace this with the path to your image
-    os.chdir(directory)
+    os.chdir(dir)
     day_image_paths = Path('./days/').glob('*.jpg')
     for image_path in day_image_paths:
         image = Image.open(image_path).convert("RGB")
@@ -110,7 +117,7 @@ def predict_days(directory):
         index = np.argmax(prediction)
         class_name = class_names[index]
         confidence_score = prediction[0][index]
-        if confidence_score < 0.8:
+        if confidence_score < 0.7:
             class_name = '_unclear'
 
 

@@ -15,6 +15,7 @@ dependencies = [
 [project.scripts]
 train_model = "pluppkalender.pluppkalender:train_model"
 split_into_days = "pluppkalender.pluppkalender:split_into_days"
+predict_days = "pluppkalender.pluppkalender:predict_days"
 
 [tool.uv]
 package = true
